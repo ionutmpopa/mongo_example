@@ -94,4 +94,13 @@ public class PersonService {
             })
             .forEachOrdered(batch -> updateBatch(batch, newAge));
     }
+
+    public void updateFieldWithValues() {
+        Query query = new Query(Criteria.where("existingField").exists(true));
+
+        Update update = new Update()
+            .set("newField", "$existingField");
+
+        mongoTemplate.updateMulti(query, update, YourDocumentClass.class);
+    }
 }
