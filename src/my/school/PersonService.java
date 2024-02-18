@@ -51,4 +51,47 @@ public class PersonService {
 
         return batches;
     }
+
+    public void updateAgeInBatches(int batchSize, int newAge) {
+        Query query = new Query(Criteria.where("age").exists(true));
+
+        Iterator<Person> iterator = mongoTemplate.stream(query, Person.class)
+            .iterator();
+
+        while (iterator.hasNext()) {
+            List<Person> batch = new ArrayList<>(batchSize);
+
+            for (int i = 0; i < batchSize && iterator.hasNext(); i++) {
+                batch.add(iterator.next());
+            }
+
+            updateBatch(batch, newAge);
+        }
+    }
+
+    private void updateBatch(List<Person> batch, int newAge) {
+        BulkOperations bulkOps = mongoTemplate.bulkOps(BulkMode.UNORDERED, Person.class);
+
+        Query query = new Query(Criteria.where("id").in(batch.stream().map(Person::getId).collect(Collectors.toList())));
+        Update update = new Update().set("age", newAge);
+
+        bulkOps.updateMulti(query, update);
+        bulkOps.execute();
+    }
+
+    public void updateAgeInBatchesParallel(int batchSize, int newAge) {
+        Query query = new Query(Criteria.where("age").exists(true));
+
+        Iterator<Person> iterator = mongoTemplate.stream(query, Person.class).iterator();
+
+        StreamSupport.stream(
+                Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED),
+                true) // Enable parallel processing
+            .map(batch -> {
+                List<Person> batchList = new ArrayList<>(batchSize);
+                batch.forEach(batchList::add);
+                return batchList;
+            })
+            .forEachOrdered(batch -> updateBatch(batch, newAge));
+    }
 }
