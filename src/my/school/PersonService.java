@@ -103,4 +103,15 @@ public class PersonService {
 
         mongoTemplate.updateMulti(query, update, YourDocumentClass.class);
     }
+
+    public void updateInBatches(int batchSize, String defaultValue) {
+        long totalDocuments = mongoTemplate.count(new Query(), YourDocumentClass.class);
+
+        for (long skip = 0; skip < totalDocuments; skip += batchSize) {
+            Query query = new Query().skip(skip).limit(batchSize);
+            Update update = new Update().set("newField", defaultValue);
+
+            mongoTemplate.updateMulti(query, update, YourDocumentClass.class);
+        }
+    }
 }
