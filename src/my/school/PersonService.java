@@ -38,14 +38,17 @@ public class PersonService {
     }
 
     private List<List<Person>> splitIntoBatches(List<Person> allPersons, int batchSize) {
-        // Split the list into batches of the specified size
+        List<List<Person>> batches = new ArrayList<>();
+
         int totalSize = allPersons.size();
         int fromIndex = 0;
 
         while (fromIndex < totalSize) {
             int toIndex = Math.min(fromIndex + batchSize, totalSize);
-            yield allPersons.subList(fromIndex, toIndex);
+            batches.add(allPersons.subList(fromIndex, toIndex));
             fromIndex = toIndex;
         }
+
+        return batches;
     }
 }
