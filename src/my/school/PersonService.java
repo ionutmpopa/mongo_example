@@ -114,4 +114,10 @@ public class PersonService {
             mongoTemplate.updateMulti(query, update, YourDocumentClass.class);
         }
     }
+
+//    db.yourCollection.updateMany(
+//    { "yourCriteriaField": "criteriaValue" },  // Criteria to match documents
+//    { $set: { "fieldToUpdate": "newFieldValue" } }, // Update operation
+//    { limit: batchSize } // Limit the update to a certain batch size
+//    );
 }
