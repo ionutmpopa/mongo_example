@@ -115,6 +115,56 @@ public class PersonService {
         }
     }
 
+    private static X509Certificate loadCertificate(String path) throws Exception {
+        // Load X.509 certificate from file
+        // You can replace this with your method to load the certificate
+        // For example, using FileInputStream and CertificateFactory
+        // FileInputStream fis = new FileInputStream(path);
+        // CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        // return (X509Certificate) cf.generateCertificate(fis);
+
+        // For the sake of the example, return null
+        return null;
+    }
+
+    private static byte[] calculateSHAHash(PublicKey publicKey) throws CertificateEncodingException {
+        try {
+            // Get the DER-encoded SubjectPublicKeyInfo structure
+            byte[] encodedKey = publicKey.getEncoded();
+
+            // Parse the DER-encoded structure using Bouncy Castle
+            ASN1InputStream asn1InputStream = new ASN1InputStream(new ByteArrayInputStream(encodedKey));
+            ASN1Primitive asn1Primitive = asn1InputStream.readObject();
+            asn1InputStream.close();
+
+            // Convert to ASN1Sequence
+            ASN1Sequence sequence = ASN1Sequence.getInstance(asn1Primitive);
+
+            // Assuming the structure is Sequence(AlgorithmIdentifier, PublicKey)
+            // and the actual public key is in the second element
+            ASN1Primitive publicKeyObject = sequence.getObjectAt(1).toASN1Primitive();
+
+            // Use SHA-256 MessageDigest to calculate the hash
+            MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+            sha256.update(publicKeyObject.getEncoded());
+
+            // Return the final hash
+            return sha256.digest();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder hexString = new StringBuilder(2 * bytes.length);
+        for (byte b : bytes) {
+            hexString.append(String.format("%02x", b & 0xff));
+        }
+        return hexString.toString();
+    }
+}
+
     private static int findStartOfPublicKey(byte[] encodedKey) {
         // Check if the encoding starts with SEQUENCE (0x30)
         if (encodedKey.length > 0 && encodedKey[0] == 0x30) {
