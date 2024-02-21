@@ -115,6 +115,46 @@ public class PersonService {
         }
     }
 
+    private static int findStartOfPublicKey(byte[] encodedKey) {
+        // Check if the encoding starts with SEQUENCE (0x30)
+        if (encodedKey.length > 0 && encodedKey[0] == 0x30) {
+            // Find the length of the first SEQUENCE
+            int length = encodedKey[1] & 0xFF;
+
+            // Skip over the first SEQUENCE (including length)
+            int pos = 2 + length;
+
+            // Check if the next element is SEQUENCE (AlgorithmIdentifier)
+            if (pos < encodedKey.length && encodedKey[pos] == 0x30) {
+                // Find the length of the second SEQUENCE
+                length = encodedKey[pos + 1] & 0xFF;
+
+                // Skip over the second SEQUENCE (including length)
+                pos += 2 + length;
+
+                // Check if the next element is BIT STRING (SubjectPublicKey)
+                if (pos < encodedKey.length && encodedKey[pos] == 0x03) {
+                    // Find the length of the BIT STRING
+                    length = encodedKey[pos + 1] & 0xFF;
+
+                    // Skip over the BIT STRING header (including length)
+                    pos += 2;
+
+                    // Skip over any unused bits (typically 0x00 for RSA keys)
+                    if (pos < encodedKey.length && encodedKey[pos] == 0x00) {
+                        pos++;
+                    }
+
+                    // Now 'pos' points to the start of the actual public key bytes
+                    return pos;
+                }
+            }
+        }
+
+        // Default: return 0 if the structure is not as expected
+        return 0;
+    }
+
 //    db.yourCollection.updateMany(
 //    { "yourCriteriaField": "criteriaValue" },  // Criteria to match documents
 //    { $set: { "fieldToUpdate": "newFieldValue" } }, // Update operation
