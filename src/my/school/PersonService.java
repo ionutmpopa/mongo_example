@@ -7,6 +7,9 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
+import java.security.MessageDigest;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.X509Certificate;
 import java.util.List;
 
 @Service
@@ -210,4 +213,22 @@ public class PersonService {
 //    { $set: { "fieldToUpdate": "newFieldValue" } }, // Update operation
 //    { limit: batchSize } // Limit the update to a certain batch size
 //    );
+
+    private static byte[] calculateIssuerKeyHash(X509Certificate certificate)
+        throws CertificateEncodingException {
+        try {
+            // Get the DER-encoded form of the issuer's public key information
+            byte[] issuerKeyInfo = certificate.getTBSCertificate();
+
+            // Use SHA-256 MessageDigest to calculate the hash
+            MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+            sha256.update(issuerKeyInfo);
+
+            // Return the final hash
+            return sha256.digest();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 }
