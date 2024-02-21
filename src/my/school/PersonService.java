@@ -7,9 +7,14 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
+import java.security.KeyFactory;
 import java.security.MessageDigest;
+import java.security.PublicKey;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
+import java.security.spec.ECParameterSpec;
+import java.security.spec.ECPoint;
+import java.security.spec.ECPublicKeySpec;
 import java.util.List;
 
 @Service
@@ -231,4 +236,49 @@ public class PersonService {
             return null;
         }
     }
+
+    private static PublicKey decompressECDSAPublicKey(PublicKey compressedPublicKey)
+        throws CertificateEncodingException {
+        try {
+            // Extract the parameters of the compressed ECDSA public key
+            ECPoint compressedPoint = ((java.security.interfaces.ECPublicKey) compressedPublicKey).getW();
+            ECParameterSpec params = ((java.security.interfaces.ECPublicKey) compressedPublicKey).getParams();
+
+            // Decompress the ECDSA public key by constructing a new ECPoint
+            ECPoint decompressedPoint = new ECPoint(compressedPoint.getAffineX(), compressedPoint.getAffineY());
+
+            // Create a new ECDSA public key specification with the decompressed point and parameters
+            ECPublicKeySpec decompressedKeySpec = new ECPublicKeySpec(decompressedPoint, params);
+
+            // Generate the decompressed ECDSA public key
+            KeyFactory keyFactory = KeyFactory.getInstance("EC");
+            return keyFactory.generatePublic(decompressedKeySpec);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private static PublicKey compressECDSAPublicKey(PublicKey uncompressedPublicKey)
+        throws CertificateEncodingException {
+        try {
+            // Extract the parameters of the uncompressed ECDSA public key
+            ECPoint uncompressedPoint = ((java.security.interfaces.ECPublicKey) uncompressedPublicKey).getW();
+            ECParameterSpec params = ((java.security.interfaces.ECPublicKey) uncompressedPublicKey).getParams();
+
+            // Compress the ECDSA public key by constructing a new ECPoint
+            ECPoint compressedPoint = new ECPoint(uncompressedPoint.getAffineX(), uncompressedPoint.getAffineY().mod(new java.math.BigInteger("2")));
+
+            // Create a new ECDSA public key specification with the compressed point and parameters
+            ECPublicKeySpec compressedKeySpec = new ECPublicKeySpec(compressedPoint, params);
+
+            // Generate the compressed ECDSA public key
+            KeyFactory keyFactory = KeyFactory.getInstance("EC");
+            return keyFactory.generatePublic(compressedKeySpec);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
 }
