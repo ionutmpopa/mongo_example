@@ -281,4 +281,18 @@ public class PersonService {
         }
     }
 
+    private boolean isPublicKeyCompressed(PublicKey publicKey) {
+        if (publicKey instanceof java.security.interfaces.ECPublicKey) {
+            System.out.println("Public Key is an ECDSA key");
+
+            // Print the encoded form (compressed)
+            byte[] encodedKey = publicKey.getEncoded();
+            System.out.println("Encoded Public Key (Compressed): " + bytesToHex(encodedKey));
+            return true;
+        } else {
+            System.out.println("Public Key is not an ECDSA key");
+            return false;
+        }
+    }
+
 }
