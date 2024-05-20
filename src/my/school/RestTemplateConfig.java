@@ -35,6 +35,29 @@ public class RestTemplateConfig {
         return builder.requestFactory(() -> factory).build();
     }
 
+    @Bean
+    public RestTemplate restTemplate2(RestTemplateBuilder builder) throws Exception {
+        // Load the PKCS12 trust store
+        KeyStore trustStore = KeyStore.getInstance("PKCS12");
+        try (FileInputStream trustStoreStream = new FileInputStream("path/to/your/truststore.p12")) {
+            trustStore.load(trustStoreStream, "truststore-password".toCharArray());
+        }
+
+        // Create an SSLContext using the trust store
+        SSLContext sslContext = SSLContextBuilder.create()
+            .loadTrustMaterial(trustStore, null)
+            .build();
+
+        // Create an HttpClient with the SSL context
+        CloseableHttpClient httpClient = HttpClients.custom()
+            .setSSLContext(sslContext)
+            .build();
+
+        // Configure RestTemplate to use the custom HttpClient
+        HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory(httpClient);
+        return builder.requestFactory(() -> factory).build();
+    }
+
 //    <dependency>
 //    <groupId>org.apache.httpcomponents.client5</groupId>
 //    <artifactId>httpclient5</artifactId>
