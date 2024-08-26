@@ -145,7 +145,7 @@ export class AppComponent implements OnInit {
     if (this.oauthService.hasValidAccessToken()) {
       // Retrieve the return URL from localStorage
       const returnUrl = localStorage.getItem('returnUrl') || '/';
-      
+
       // Navigate to the stored return URL
       this.router.navigateByUrl(returnUrl);
 
@@ -157,3 +157,100 @@ export class AppComponent implements OnInit {
     }
   }
 }
+
+Updated Approach
+Set Up OAuth2 Configuration
+Store the Intended Route Before Redirect
+Handle the Redirect After Login in the redirectUri Component
+1. Set Up OAuth2 Configuration
+Your AuthConfig in Angular is configured with a redirectUri that points to a specific route in your application (e.g., /auth-callback). This route will be responsible for handling the token after a successful login.
+
+export const authConfig: AuthConfig = {
+  issuer: 'https://your-identity-provider.com',
+  redirectUri: window.location.origin + '/auth-callback',
+  clientId: 'your-client-id',
+  responseType: 'code',
+  scope: 'openid profile email',
+  showDebugInformation: true,
+};
+
+2. Store the Intended Route Before Redirect
+Before initiating the login flow, store the route the user was trying to access. This ensures that after login, the user can be redirected back to this route.
+
+In your component that triggers the login (e.g., a login button), do something like this:
+
+import { Component } from '@angular/core';
+import { OAuthService } from 'angular-oauth2-oidc';
+import { Router } from '@angular/router';
+
+@Component({
+  selector: 'app-login',
+  templateUrl: './login.component.html',
+})
+export class LoginComponent {
+  constructor(private oauthService: OAuthService, private router: Router) {}
+
+  login() {
+    // Store the intended route in localStorage
+    const returnUrl = this.router.url;
+    localStorage.setItem('returnUrl', returnUrl);
+
+    // Start the login flow
+    this.oauthService.initLoginFlow();
+  }
+}
+
+
+3. Handle the Redirect After Login in the redirectUri Component
+Create a component that will be mapped to the redirectUri (e.g., /auth-callback) in your Angular routing configuration. This component will be responsible for processing the token and redirecting the user to the originally intended route.
+
+auth-callback.component.ts:
+
+import { Component, OnInit } from '@angular/core';
+import { OAuthService } from 'angular-oauth2-oidc';
+import { Router } from '@angular/router';
+
+@Component({
+  selector: 'app-auth-callback',
+  template: '<p>Processing authentication...</p>',
+})
+export class AuthCallbackComponent implements OnInit {
+  constructor(private oauthService: OAuthService, private router: Router) {}
+
+  ngOnInit() {
+    // Try to load the token from the URL
+    this.oauthService.loadDiscoveryDocumentAndTryLogin().then(() => {
+      if (this.oauthService.hasValidAccessToken()) {
+        // Get the stored return URL
+        const returnUrl = localStorage.getItem('returnUrl') || '/';
+
+        // Redirect to the intended route
+        this.router.navigateByUrl(returnUrl);
+
+        // Clear the return URL from localStorage
+        localStorage.removeItem('returnUrl');
+      } else {
+        // Handle login failure
+        console.error('Login failed');
+        this.router.navigate(['/login']);
+      }
+    });
+  }
+}
+
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+import { AuthCallbackComponent } from './auth-callback/auth-callback.component';
+
+const routes: Routes = [
+  // Other routes
+  { path: 'auth-callback', component: AuthCallbackComponent },
+  // Fallback route
+  { path: '**', redirectTo: '/' },
+];
+
+@NgModule({
+  imports: [RouterModule.forRoot(routes)],
+  exports: [RouterModule],
+})
+export class AppRoutingModule {}
