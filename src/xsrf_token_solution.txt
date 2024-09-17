@@ -1,0 +1,130 @@
+1. 
+
+Ensure Cross-Site Cookies are Enabled (withCredentials: true)
+If the Angular frontend and the Spring Boot backend are on different domains or even different ports, the browser will treat this as a cross-origin request (CORS). For Angular to access cookies set by the backend (like XSRF-TOKEN), you need to explicitly tell Angular to include credentials (cookies) in cross-origin requests.
+
+Solution:
+In your Angular HttpClient requests, make sure that withCredentials is set to true so that the cookies are included in every request. Here's how to do this:
+
+this.httpClient.post('/api/login', body, {
+  withCredentials: true
+}).subscribe(response => {
+  // handle response
+});
+
+Alternatively, if you want to globally set withCredentials for all HTTP requests, you can do so using an interceptor:
+
+@Injectable()
+export class CredentialsInterceptor implements HttpInterceptor {
+  intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+    const modifiedReq = req.clone({
+      withCredentials: true
+    });
+    return next.handle(modifiedReq);
+  }
+}
+
+Make sure this interceptor is provided in your Angular module.
+
+
+2. 
+
+CORS Configuration on the Spring Boot Backend
+For cookies to be properly set and sent with cross-origin requests, the backend needs to be configured to handle CORS correctly. If the backend doesn’t allow cookies from cross-origin requests, Angular won’t be able to extract the XSRF-TOKEN.
+
+Solution:
+In your Spring Boot application, configure CORS to allow credentials (cookies) from your Angular frontend. Here’s how you can do that in your Spring Security configuration:
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+@Bean
+public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    http
+        .cors(cors -> cors
+            .configurationSource(request -> {
+                var corsConfiguration = new CorsConfiguration();
+                corsConfiguration.setAllowedOrigins(List.of("http://localhost:4200")); // Change to your Angular frontend's URL
+                corsConfiguration.setAllowedMethods(List.of("GET","POST", "PUT", "DELETE", "OPTIONS"));
+                corsConfiguration.setAllowedHeaders(List.of("*"));
+                corsConfiguration.setAllowCredentials(true);  // Important: Allow credentials
+                return corsConfiguration;
+            })
+        )
+        .csrf(csrf -> csrf
+            .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()) // Send CSRF in a cookie
+        )
+        .authorizeRequests(auth -> auth
+            .anyRequest().authenticated()
+        );
+    return http.build();
+}
+
+This ensures that:
+
+Cross-origin requests from your Angular app are allowed.
+Cookies (including the CSRF token) are sent from the backend to the Angular app.
+The withCredentials flag is respected.
+
+
+3. 
+
+Correct CSRF Token Cookie Configuration
+To ensure that Angular can access the CSRF token from the XSRF-TOKEN cookie, the cookie must not be marked as HttpOnly. By default, Spring Boot uses the CookieCsrfTokenRepository to send the CSRF token in a cookie. However, if the cookie is marked as HttpOnly, Angular (running in the client) won’t be able to access it because HttpOnly cookies are inaccessible to JavaScript.
+
+Solution:
+In your Spring Security configuration, ensure that the CSRF cookie is not set as HttpOnly. This allows the Angular app to read the token from the cookie.
+
+http
+    .csrf(csrf -> csrf
+        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()) // Make CSRF token accessible to Angular
+    );
+	
+4. 
+
+Angular's Default XSRF Token Handling
+Angular has built-in support for handling CSRF tokens, but it expects the token to be stored in a cookie named XSRF-TOKEN (case-sensitive) by default. If the backend is sending the token under a different cookie name or if the header is named differently, you may need to configure Angular to use the correct names.
+
+Verify Backend Cookie Name:
+Check the exact name of the cookie in the response headers from the backend. It should be XSRF-TOKEN.
+
+If the cookie name is different, you can configure Angular to use a custom cookie name by providing it in the HttpClientXsrfModule.
+
+import { HttpClientXsrfModule } from '@angular/common/http';
+
+@NgModule({
+  imports: [
+    HttpClientModule,
+    HttpClientXsrfModule.withOptions({
+      cookieName: 'XSRF-TOKEN',  // Set this to the cookie name provided by Spring Boot
+      headerName: 'X-XSRF-TOKEN', // The header that Angular will use to send the token back
+    }),
+  ],
+})
+export class AppModule {}
+
+
+This will tell Angular to extract the CSRF token from the XSRF-TOKEN cookie and send it back in the X-XSRF-TOKEN header.
+
+5. 
+
+Browser Settings (SameSite Cookie Policy)
+Modern browsers have stricter security policies regarding cookies, especially with the SameSite attribute. If the backend sets the XSRF-TOKEN cookie with the SameSite=Lax or SameSite=Strict attribute, the browser may block the cookie in cross-origin requests.
+
+Solution:
+Ensure that the SameSite policy for the XSRF-TOKEN cookie is either None or appropriately set to allow cross-origin requests. For example:
+
+CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+csrfTokenRepository.setSameSite(null);  // Set to 'None' if needed for cross-origin
+
+
+Summary of Steps:
+Set withCredentials: true in your Angular HTTP requests to ensure cookies are sent.
+Ensure CORS Configuration in Spring Boot allows cross-origin requests and credentials.
+Ensure HttpOnly is false for the CSRF cookie in Spring Security.
+Verify the cookie name and configure Angular to use the correct one using HttpClientXsrfModule.
+Check the SameSite policy for the CSRF cookie to ensure it’s compatible with your deployment setup.
+By following these steps, Angular should correctly extract the XSRF-TOKEN from the cookie sent by the Spring Boot backend and use it in subsequent requests.
