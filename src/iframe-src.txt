@@ -1,0 +1,49 @@
+Content-Security-Policy: script-src 'strict-dynamic' 'nonce-{random-nonce}'; iframe-src https://trusted-iframe-source.com;
+
+OR
+
+Content-Security-Policy: script-src 'strict-dynamic' 'nonce-{random-nonce}'; child-src https://trusted-iframe-source.com;
+
+OR
+
+Content-Security-Policy: script-src 'strict-dynamic' 'nonce-{random-nonce}'; default-src https://trusted-iframe-source.com;
+
+OR
+
+<iframe src="https://trusted-iframe-source.com" sandbox="allow-scripts allow-same-origin"></iframe>
+
+OR
+
+http.headers()
+    .contentSecurityPolicy("script-src 'strict-dynamic' 'nonce-{random-nonce}'; iframe-src https://trusted-iframe-source.com;")
+    .and()
+    .frameOptions().sameOrigin(); // Or specify domains if needed
+
+OR
+
+Content-Security-Policy: frame-ancestors 'self' https://trusted-embedder.com; iframe-src https://trusted-iframe-source.com;
+
+OR
+
+import javax.servlet.*;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+@Component
+public class FrameOptionsFilter implements Filter {
+
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
+        HttpServletResponse httpServletResponse = (HttpServletResponse) response;
+
+        // Adjust headers conditionally
+        if (request.getServletPath().startsWith("/iframe-allowed")) {
+            httpServletResponse.setHeader("X-Frame-Options", "ALLOW-FROM https://trusted-embedder.com");
+        } else {
+            httpServletResponse.setHeader("X-Frame-Options", "DENY");
+        }
+
+        chain.doFilter(request, response);
+    }
+}
